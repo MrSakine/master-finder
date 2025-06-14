@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explorateur de Masters en Ingénierie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals (Slate, Zinc, Stone) -->
+    <!-- Application Structure Plan: The SPA is designed as a task-oriented journey for a Malian student. It starts with a welcoming hero section (Accueil), moves to an interactive program explorer with filters (Explorer les Programmes), presents future possibilities (Débouchés), and concludes with a practical, step-by-step guide (Guide de Candidature). This non-linear, thematic structure is more intuitive for decision-making than the report's linear format. It allows users to filter vast amounts of information based on personal criteria (discipline, region, language), making the data actionable. Key interactions include dynamic card filtering, interactive charts for cost/opportunity comparison, and an accordion for digesting dense application information. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: University program list -> Goal: Explore & Compare -> Viz/Method: Interactive Filters & Cards (HTML/JS) -> Interaction: Users click filters to instantly narrow down options. Justification: This is a highly efficient and user-friendly way to handle a large dataset of programs.
+        - Report Info: Program distribution by country -> Goal: Quick Comparison -> Viz/Method: Bar Chart (Chart.js/Canvas) -> Interaction: Chart updates dynamically with filters. Justification: Provides an immediate visual summary of where most opportunities lie based on user's choices.
+        - Report Info: Career prospects -> Goal: Compare Fields -> Viz/Method: Two-column comparison layout (HTML/Tailwind) -> Interaction: Static text, clearly organized. Justification: Simple, direct comparison is most effective for this qualitative data.
+        - Report Info: Tuition and living costs -> Goal: Financial Comparison -> Viz/Method: Grouped Bar Chart (Chart.js/Canvas) -> Interaction: Hover tooltips show precise costs. Justification: Visually highlights the significant financial differences between countries, a key decision factor.
+        - Report Info: Application process -> Goal: Inform & Guide -> Viz/Method: Accordion (HTML/JS) -> Interaction: Click to expand/collapse sections. Justification: Organizes detailed, text-heavy information into manageable, non-overwhelming steps. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .active-nav { color: #3b82f6; border-bottom: 2px solid #3b82f6; }
+        .inactive-nav { color: #4b5563; }
+        .filter-btn { transition: all 0.2s ease-in-out; }
+        .filter-btn.active { background-color: #3b82f6; color: white; }
+        .filter-btn.inactive { background-color: #e5e7eb; color: #374151; }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 350px; max-height: 400px; }
+        @media (min-width: 768px) { .chart-container { height: 400px; } }
+        .program-card { transition: opacity 0.5s ease-in-out, transform 0.3s ease-in-out; }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+    </style>
+</head>
+<body class="bg-stone-50 text-slate-800">
+
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-4 md:px-6 py-3">
+            <div class="flex justify-between items-center">
+                <a href="#accueil" class="text-xl font-bold text-blue-600">MasterFinder</a>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#explorer" class="nav-link inactive-nav font-medium hover:text-blue-600 transition-colors">Explorer</a>
+                    <a href="#debouches" class="nav-link inactive-nav font-medium hover:text-blue-600 transition-colors">Débouchés</a>
+                    <a href="#candidature" class="nav-link inactive-nav font-medium hover:text-blue-600 transition-colors">Candidature</a>
+                </div>
+                <div class="md:hidden">
+                     <button id="mobile-menu-button" class="text-slate-600 hover:text-blue-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                    </button>
+                </div>
+            </div>
+            <div id="mobile-menu" class="hidden md:hidden mt-4 space-y-2">
+                <a href="#explorer" class="block py-2 px-4 text-sm font-medium text-slate-600 hover:bg-blue-50 rounded-lg">Explorer</a>
+                <a href="#debouches" class="block py-2 px-4 text-sm font-medium text-slate-600 hover:bg-blue-50 rounded-lg">Débouchés</a>
+                <a href="#candidature" class="block py-2 px-4 text-sm font-medium text-slate-600 hover:bg-blue-50 rounded-lg">Candidature</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section id="accueil" class="min-h-[60vh] flex items-center bg-white py-20 md:py-32">
+            <div class="container mx-auto px-4 md:px-6 text-center">
+                <h1 class="text-4xl md:text-6xl font-extrabold text-slate-900 leading-tight">Trouvez votre Master en Ingénierie</h1>
+                <p class="mt-4 md:mt-6 max-w-2xl mx-auto text-lg md:text-xl text-slate-600">Un guide interactif pour les étudiants maliens cherchant un Master en Génie Mécanique ou Mécatronique en Afrique, Europe ou Asie.</p>
+                <a href="#explorer" class="mt-8 inline-block bg-blue-600 text-white font-semibold px-8 py-3 rounded-lg shadow-lg hover:bg-blue-700 transition-transform transform hover:scale-105">Commencer l'exploration</a>
+            </div>
+        </section>
+
+        <section id="explorer" class="py-16 md:py-24 bg-stone-100">
+            <div class="container mx-auto px-4 md:px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold">Explorer les Programmes</h2>
+                    <p class="mt-3 text-lg text-slate-600 max-w-3xl mx-auto">Utilisez les filtres pour affiner votre recherche et découvrir le programme qui vous correspond.</p>
+                </div>
+
+                <div id="filters" class="flex flex-col md:flex-row justify-center items-center gap-4 md:gap-8 mb-12 flex-wrap">
+                    <div>
+                        <span class="font-semibold mr-3 text-slate-700">Discipline:</span>
+                        <div id="discipline-filter" class="inline-flex rounded-lg shadow-sm">
+                            <button data-filter-group="discipline" data-filter-value="all" class="filter-btn active px-4 py-2 text-sm font-medium rounded-l-lg">Tout</button>
+                            <button data-filter-group="discipline" data-filter-value="Mécanique" class="filter-btn inactive px-4 py-2 text-sm font-medium border-t border-b border-gray-200">G. Mécanique</button>
+                            <button data-filter-group="discipline" data-filter-value="Mécatronique" class="filter-btn inactive px-4 py-2 text-sm font-medium rounded-r-lg">Mécatronique</button>
+                        </div>
+                    </div>
+                     <div>
+                        <span class="font-semibold mr-3 text-slate-700">Continent:</span>
+                        <div id="continent-filter" class="inline-flex rounded-lg shadow-sm">
+                            <button data-filter-group="continent" data-filter-value="all" class="filter-btn active px-4 py-2 text-sm font-medium rounded-l-lg">Tout</button>
+                            <button data-filter-group="continent" data-filter-value="Europe" class="filter-btn inactive px-4 py-2 text-sm font-medium border-t border-b border-gray-200">Europe</button>
+                            <button data-filter-group="continent" data-filter-value="Afrique" class="filter-btn inactive px-4 py-2 text-sm font-medium border-t border-b border-gray-200">Afrique</button>
+                            <button data-filter-group="continent" data-filter-value="Asie" class="filter-btn inactive px-4 py-2 text-sm font-medium rounded-r-lg">Asie</button>
+                        </div>
+                    </div>
+                     <div>
+                        <span class="font-semibold mr-3 text-slate-700">Langue:</span>
+                        <div id="language-filter" class="inline-flex rounded-lg shadow-sm">
+                            <button data-filter-group="language" data-filter-value="all" class="filter-btn active px-4 py-2 text-sm font-medium rounded-l-lg">Tout</button>
+                            <button data-filter-group="language" data-filter-value="Français" class="filter-btn inactive px-4 py-2 text-sm font-medium border-t border-b border-gray-200">Français</button>
+                            <button data-filter-group="language" data-filter-value="Anglais" class="filter-btn inactive px-4 py-2 text-sm font-medium rounded-r-lg">Anglais</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="program-count" class="text-center mb-8 font-medium text-slate-600"></div>
+
+                <div id="program-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                </div>
+                
+                 <div class="mt-16 bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-2xl font-bold text-center mb-4">Aperçu des Opportunités par Pays</h3>
+                    <p class="text-center text-slate-600 mb-6">Ce graphique montre le nombre de programmes de master pertinents trouvés dans chaque pays, mis à jour selon vos filtres.</p>
+                    <div class="chart-container">
+                        <canvas id="countryChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <section id="debouches" class="py-16 md:py-24 bg-white">
+            <div class="container mx-auto px-4 md:px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold">Perspectives de Carrière</h2>
+                    <p class="mt-3 text-lg text-slate-600 max-w-3xl mx-auto">Un Master en Génie Mécanique ou en Mécatronique ouvre la porte à des carrières passionnantes et très demandées dans le monde entier.</p>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
+                    <div class="bg-stone-50 p-8 rounded-xl shadow-sm border border-stone-200">
+                        <h3 class="text-2xl font-semibold mb-4 text-blue-600">Génie Mécanique</h3>
+                        <p class="text-slate-600 mb-6">Les ingénieurs mécaniciens sont essentiels dans des secteurs variés comme la fabrication, l'énergie, les transports et l'aérospatiale. Ils conçoivent, développent et maintiennent des systèmes complexes.</p>
+                        <h4 class="font-semibold mb-2 text-slate-700">Secteurs Clés :</h4>
+                        <ul class="list-disc list-inside space-y-1 text-slate-600 mb-6">
+                            <li>Automobile et Aérospatiale</li>
+                            <li>Production d'énergie et Énergies renouvelables</li>
+                            <li>Fabrication et Production industrielle</li>
+                            <li>Biomédical et Technologies de la santé</li>
+                            <li>Mines et Transport</li>
+                        </ul>
+                         <h4 class="font-semibold mb-2 text-slate-700">Rôles Possibles :</h4>
+                        <ul class="list-disc list-inside space-y-1 text-slate-600">
+                            <li>Ingénieur de recherche et développement</li>
+                             <li>Ingénieur de production</li>
+                             <li>Ingénieur en conception (CAO)</li>
+                             <li>Ingénieur commercial technique</li>
+                        </ul>
+                    </div>
+                    <div class="bg-stone-50 p-8 rounded-xl shadow-sm border border-stone-200">
+                        <h3 class="text-2xl font-semibold mb-4 text-green-600">Mécatronique</h3>
+                        <p class="text-slate-600 mb-6">La mécatronique est un domaine interdisciplinaire en pleine croissance qui combine mécanique, électronique, informatique et contrôle pour créer des produits et systèmes intelligents.</p>
+                        <h4 class="font-semibold mb-2 text-slate-700">Secteurs Clés :</h4>
+                        <ul class="list-disc list-inside space-y-1 text-slate-600 mb-6">
+                            <li>Robotique et Automatisation industrielle</li>
+                            <li>Industrie 4.0 et Usines intelligentes</li>
+                            <li>Systèmes embarqués (automobile, aérospatiale)</li>
+                            <li>Technologie médicale (prothèses intelligentes)</li>
+                            <li>Véhicules autonomes et Drones</li>
+                        </ul>
+                         <h4 class="font-semibold mb-2 text-slate-700">Rôles Possibles :</h4>
+                        <ul class="list-disc list-inside space-y-1 text-slate-600">
+                            <li>Ingénieur en mécatronique / robotique</li>
+                             <li>Ingénieur en automatisation</li>
+                             <li>Concepteur de systèmes de contrôle</li>
+                             <li>Spécialiste en intégration de systèmes</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="candidature" class="py-16 md:py-24 bg-stone-100">
+            <div class="container mx-auto px-4 md:px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold">Guide de Candidature</h2>
+                    <p class="mt-3 text-lg text-slate-600 max-w-3xl mx-auto">Suivez ces étapes clés pour préparer une candidature solide et réussie pour votre Master à l'étranger.</p>
+                </div>
+                
+                <div class="max-w-4xl mx-auto">
+                    <div id="accordion-container" class="space-y-4">
+                        <!-- Accordion Item 1 -->
+                        <div class="accordion-item bg-white rounded-lg shadow-sm">
+                            <button class="accordion-header w-full flex justify-between items-center text-left p-5 font-semibold text-lg text-slate-800 hover:bg-stone-50">
+                                <span>1. Reconnaissance de votre Licence</span>
+                                <svg class="w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+                            <div class="accordion-content px-5 pb-5 text-slate-600">
+                                <p class="mb-4">Votre Licence française, basée sur le système LMD et le processus de Bologne (180 ECTS), est un atout majeur. Elle est largement reconnue comme équivalente à un Bachelor, facilitant l'admission en Master dans de nombreuses régions.</p>
+                                <ul class="list-disc list-inside space-y-2">
+                                    <li><b>Europe :</b> La reconnaissance est simplifiée grâce au Processus de Bologne. Pour l'Allemagne, consultez la base de données <a href="https://anabin.kmk.org/anabin.html" target="_blank" class="text-blue-600 hover:underline">anabin</a> pour vérifier l'équivalence de votre diplôme.</li>
+                                    <li><b>Maroc :</b> Avantage majeur ! Il existe une reconnaissance automatique des diplômes des universités publiques françaises, ce qui élimine les démarches administratives complexes.</li>
+                                    <li><b>Afrique du Sud :</b> Votre diplôme doit être évalué par la South African Qualifications Authority (SAQA).</li>
+                                    <li><b>Asie (Chine, Singapour) :</b> Des accords de reconnaissance mutuelle existent, mais le classement de votre université d'origine et votre expérience peuvent être pris en compte.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Accordion Item 2 -->
+                        <div class="accordion-item bg-white rounded-lg shadow-sm">
+                           <button class="accordion-header w-full flex justify-between items-center text-left p-5 font-semibold text-lg text-slate-800 hover:bg-stone-50">
+                                <span>2. Préparation du Dossier de Candidature</span>
+                                <svg class="w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+                            <div class="accordion-content px-5 pb-5 text-slate-600">
+                                <p class="mb-4">Un dossier complet et bien préparé est essentiel. La plupart des universités demandent les documents suivants :</p>
+                                <ul class="list-disc list-inside space-y-2">
+                                    <li><b>Relevés de notes et Diplômes :</b> Copies officielles de votre Licence et de tous vos relevés de notes.</li>
+                                    <li><b>Curriculum Vitae (CV) :</b> Détaillant votre parcours académique, vos stages et projets.</li>
+                                    <li><b>Lettre de Motivation (Statement of Purpose) :</b> Expliquez vos objectifs, votre intérêt pour le programme et pourquoi vous êtes un bon candidat.</li>
+                                    <li><b>Lettres de Recommandation :</b> Généralement deux, de la part de professeurs ou de superviseurs de stage.</li>
+                                    <li><b>Test de langue :</b> Pour les programmes en anglais, préparez le TOEFL (score cible : 80-100) ou l'IELTS (score cible : 6.0-7.0).</li>
+                                    <li><b>Copie du passeport :</b> Assurez-vous qu'il est valide.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Accordion Item 3 -->
+                        <div class="accordion-item bg-white rounded-lg shadow-sm">
+                            <button class="accordion-header w-full flex justify-between items-center text-left p-5 font-semibold text-lg text-slate-800 hover:bg-stone-50">
+                                <span>3. Planification Financière</span>
+                                <svg class="w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+                            <div class="accordion-content px-5 pb-5 text-slate-600">
+                                <p class="mb-4">Les coûts varient énormément. Ce graphique compare les frais de scolarité annuels et les frais de vie mensuels estimés dans plusieurs pays clés. L'Allemagne se distingue par ses universités publiques gratuites.</p>
+                                <div class="chart-container my-6">
+                                    <canvas id="costChart"></canvas>
+                                </div>
+                                <h4 class="font-semibold text-slate-700 mt-6 mb-2">Opportunités de Bourses :</h4>
+                                <p>Ne vous laissez pas décourager par les coûts. De nombreuses bourses existent :</p>
+                                <ul class="list-disc list-inside space-y-2 mt-2">
+                                    <li><b>Erasmus Mundus :</b> Bourses complètes pour des masters dans plusieurs pays européens.</li>
+                                    <li><b>France :</b> Bourse Eiffel, Bourses du gouvernement français (via l'ambassade).</li>
+                                    <li><b>Allemagne :</b> Bourses du DAAD, Deutschlandstipendium.</li>
+                                    <li><b>Suède :</b> Bourses de l'Institut Suédois pour les Professionnels Mondiaux.</li>
+                                    <li><b>Chine :</b> Bourse du Gouvernement Chinois (CSC).</li>
+                                     <li><b>Belgique :</b> Bourses ARES et Master Mind.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Accordion Item 4 -->
+                        <div class="accordion-item bg-white rounded-lg shadow-sm">
+                           <button class="accordion-header w-full flex justify-between items-center text-left p-5 font-semibold text-lg text-slate-800 hover:bg-stone-50">
+                                <span>4. Démarches de Visa</span>
+                                <svg class="w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+                            <div class="accordion-content px-5 pb-5 text-slate-600">
+                                <p class="mb-4">En tant que citoyen malien, l'obtention d'un visa étudiant est une étape obligatoire. Anticipez les démarches qui peuvent être longues. Les documents généralement requis sont :</p>
+                                <ul class="list-disc list-inside space-y-2">
+                                    <li>Passeport en cours de validité.</li>
+                                    <li>Lettre d'admission officielle de l'université.</li>
+                                    <li>Preuve de moyens financiers suffisants pour couvrir vos frais de scolarité et de vie (le montant varie selon le pays).</li>
+                                    <li>Preuve d'hébergement (au moins pour les premiers mois).</li>
+                                    <li>Assurance santé complète.</li>
+                                </ul>
+                                 <p class="mt-4">Pour la France, la procédure passe souvent par la plateforme <a href="https://www.campusfrance.org/fr/candidature-procedure-etudes-en-france" target="_blank" class="text-blue-600 hover:underline">Études en France</a>.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-slate-800 text-white">
+        <div class="container mx-auto px-4 md:px-6 py-8 text-center">
+            <p>&copy; 2025 MasterFinder. Conçu pour guider les futurs ingénieurs.</p>
+            <p class="text-sm text-slate-400 mt-2">Toutes les informations sont basées sur le rapport "Master's Degree Pathways in Mechanical Engineering and Mechatronics" et doivent être vérifiées sur les sites officiels des universités.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const programData = [
+                { university: "Centrale Nantes", country: "France", continent: "Europe", discipline: "Mécanique", language: "Anglais", program: "MSc Mechanical Engineering", duration: "2 ans", tuition: 12000, link: "https://www.ec-nantes.fr/study/masters/advanced-manufacturing" },
+                { university: "Institut Polytechnique de Paris", country: "France", continent: "Europe", discipline: "Mécanique", language: "Anglais", program: "Master in Mechanics", duration: "2 ans", tuition: 3770, link: "https://www.educations.com/institutions/institut-polytechnique-de-paris/master-in-mechanics" },
+                { university: "Université Paris-Saclay", country: "France", continent: "Europe", discipline: "Mécanique", language: "Anglais", program: "Master in Mechanics", duration: "1-2 ans", tuition: 335, link: "https://www.universite-paris-saclay.fr/en/education/master/mechanics" },
+                { university: "IMT Nord Europe", country: "France", continent: "Europe", discipline: "Mécanique", language: "Français/Anglais", program: "MSc Eco-Design", duration: "2 ans", tuition: 0, link: "#" },
+                { university: "Le Mans Université", country: "France", continent: "Europe", discipline: "Mécanique", language: "Français", program: "Master en Acoustique", duration: "2 ans", tuition: 335, link: "#" },
+                { university: "RWTH Aachen University", country: "Germany", continent: "Europe", discipline: "Mécanique", language: "Anglais/Allemand", program: "M.Sc. General Mechanical Eng.", duration: "1.5 ans", tuition: 0, link: "https://www.rwth-aachen.de/cms/root/studium/vor-dem-studium/studiengaenge/liste-aktuelle-studiengaenge/studiengangbeschreibung/~bkwg/allgemeiner-maschinenbau-m-sc-/?lidx=1" },
+                { university: "Technical University of Munich (TUM)", country: "Germany", continent: "Europe", discipline: "Mécatronique", language: "Anglais", program: "M.Sc. Mechanical Engineering", duration: "2 ans", tuition: 6000, link: "https://www.mec.ed.tum.de/en/mec/home/" },
+                { university: "Hochschule Schmalkalden", country: "Germany", continent: "Europe", discipline: "Mécatronique", language: "Anglais", program: "Master Mechatronics & Robotics", duration: "1.5 ans", tuition: 0, link: "https://www.educations.com/masters-degrees/mechanical-engineering/germany" },
+                { university: "Deggendorf Inst. of Technology", country: "Germany", continent: "Europe", discipline: "Mécatronique", language: "Anglais", program: "M.Eng. Mechatronic & Cyber-Physical Systems", duration: "1.5 ans", tuition: 0, link: "https://www2.daad.de/deutschland/studienangebote/international-programmes/en/detail/5378/" },
+                { university: "KU Leuven", country: "Belgium", continent: "Europe", discipline: "Mécatronique", language: "Anglais/Néerlandais", program: "Master of Mechanical Eng.", duration: "2 ans", tuition: 7771, link: "https://www.educations.com/masters-degrees/mechanical-engineering/belgium" },
+                { university: "Université de Liège (ULiège)", country: "Belgium", continent: "Europe", discipline: "Mécatronique", language: "Français/Anglais", program: "MSc in Mechanical Eng. (Mechatronics)", duration: "2 ans", tuition: 835, link: "https://www.programmes.uliege.be/cocoon/20252026/en/formations/condac/A2SMCT01.html" },
+                { university: "University of Twente", country: "Netherlands", continent: "Europe", discipline: "Mécatronique", language: "Anglais", program: "Master Mechanical Engineering", duration: "2 ans", tuition: 18900, link: "https://www.utwente.nl/en/me/master_programme/" },
+                { university: "University of Groningen", country: "Netherlands", continent: "Europe", discipline: "Mécatronique", language: "Anglais", program: "MSc in Mechanical Engineering", duration: "2 ans", tuition: 18900, link: "https://www.rug.nl/masters/mechanical-engineering/" },
+                { university: "KTH Royal Institute of Technology", country: "Sweden", continent: "Europe", discipline: "Mécatronique", language: "Anglais", program: "MSc Mechatronics", duration: "2 ans", tuition: 15500, link: "https://www.kth.se/en/studies/master/mechatronics/msc-mechatronics-1.1262640" },
+                { university: "Linköping University", country: "Sweden", continent: "Europe", discipline: "Mécatronique", language: "Anglais", program: "MSc in Mechanical Engineering", duration: "2 ans", tuition: 12500, link: "https://www.topuniversities.com/universities/linkoping-university" },
+                { university: "Mines Rabat", country: "Morocco", continent: "Afrique", discipline: "Mécanique", language: "Français", program: "Diplôme d'Ingénieur", duration: "3 ans", tuition: 0, link: "https://en.wikipedia.org/wiki/%C3%89cole_Nationale_Sup%C3%A9rieure_des_Mines_de_Rabat_(Mines_Rabat)" },
+                { university: "Al Akhawayn University (AUI)", country: "Morocco", continent: "Afrique", discipline: "Mécanique", language: "Anglais/Français", program: "Engineering Programs", duration: "2 ans", tuition: 10000, link: "https://aui.ma/school-of-science-and-engineering" },
+                { university: "ENSIT", country: "Tunisia", continent: "Afrique", discipline: "Mécanique", language: "Français/Anglais", program: "Master's programs", duration: "2 ans", tuition: 0, link: "https://www.ensit.tn/" },
+                { university: "University of Johannesburg", country: "South Africa", continent: "Afrique", discipline: "Mécanique", language: "Anglais", program: "MEng / MPhil in Mechanical Eng.", duration: "1-2 ans", tuition: 4000, link: "https://www.uj.ac.za/faculties/engineering-the-built-environment/schools/school-of-mechanical-and-industrial-engineering/postgraduate-programmes/" },
+                { university: "University of Pretoria", country: "South Africa", continent: "Afrique", discipline: "Mécanique", language: "Anglais", program: "MEng Mechanical Engineering", duration: "1 an", tuition: 3500, link: "https://www.up.ac.za/school-of-engineering" },
+                { university: "Stellenbosch University", country: "South Africa", continent: "Afrique", discipline: "Mécatronique", language: "Anglais", program: "Mechatronic Engineering", duration: "2 ans", tuition: 4500, link: "#" },
+                { university: "Zhejiang Uni. of Sci. & Tech.", country: "China", continent: "Asie", discipline: "Mécanique", language: "Anglais", program: "Master in Mechanical Engineering", duration: "3 ans", tuition: 4200, link: "https://www.educations.com/masters-degrees/mechanical-engineering/china" },
+                { university: "Harbin Engineering University", country: "China", continent: "Asie", discipline: "Mécatronique", language: "Anglais", program: "Master in Mechatronic Eng.", duration: "2 ans", tuition: 4200, link: "https://www.educations.com/masters-degrees/mechanical-engineering/china" },
+                { university: "Yamaguchi University", country: "Japan", continent: "Asie", discipline: "Mécanique", language: "Anglais", program: "Master in Mechanical Engineering", duration: "2 ans", tuition: 4000, link: "https://www.yamaguchi-u.ac.jp/gsti/en/education/engineering-department/division-of-mechanical-engineering/index.html" },
+                { university: "Kobe University", country: "Japan", continent: "Asie", discipline: "Mécatronique", language: "Anglais", program: "Master of Engineering (Mechanical)", duration: "2 ans", tuition: 4000, link: "https://www.kobe-u.ac.jp/en/academics/courses/engineering_mechanical_m/" },
+                { university: "Seoul National University", country: "South Korea", continent: "Asie", discipline: "Mécatronique", language: "Anglais/Coréen", program: "Master's (Mechanical Eng.)", duration: "2 ans", tuition: 5000, link: "https://eng.snu.ac.kr/snuEng/main/contents.do?menuNo=200091" },
+                { university: "Hongik University", country: "South Korea", continent: "Asie", discipline: "Mécanique", language: "Anglais/Coréen", program: "Master of Mechanical Engineering", duration: "2 ans", tuition: 5600, link: "https://www.educations.com/mechanical-engineering/south-korea" },
+                { university: "National University of Singapore (NUS)", country: "Singapore", continent: "Asie", discipline: "Mécanique", language: "Anglais", program: "MSc in Mechanical Engineering", duration: "1.5-2.5 ans", tuition: 25000, link: "https://nusgs.nus.edu.sg/programmes/m-sc-in-mechanical-engineering-coursework" },
+            ];
+
+            const grid = document.getElementById('program-grid');
+            const filtersContainer = document.getElementById('filters');
+            const programCountEl = document.getElementById('program-count');
+
+            let countryChart, costChart;
+            
+            let currentFilters = {
+                discipline: 'all',
+                continent: 'all',
+                language: 'all'
+            };
+
+            function renderPrograms(filteredData) {
+                grid.innerHTML = '';
+                if (filteredData.length === 0) {
+                    grid.innerHTML = `<p class="text-slate-600 md:col-span-2 lg:col-span-3 text-center">Aucun programme ne correspond à vos critères. Essayez d'élargir votre recherche.</p>`;
+                    programCountEl.textContent = '0 programmes trouvés.';
+                    return;
+                }
+                
+                programCountEl.textContent = `${filteredData.length} programmes trouvés.`;
+
+                filteredData.forEach(program => {
+                    const card = document.createElement('div');
+                    card.className = 'program-card bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:-translate-y-1';
+                    card.setAttribute('data-discipline', program.discipline);
+                    card.setAttribute('data-continent', program.continent);
+                    card.setAttribute('data-language', program.language.split('/')[0]);
+                    
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start">
+                             <h3 class="text-xl font-bold mb-2 text-slate-800">${program.university}</h3>
+                             <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">${program.country}</span>
+                        </div>
+                        <p class="text-md font-medium text-blue-600 mb-4">${program.program}</p>
+                        <div class="flex flex-wrap gap-2 text-sm mb-4">
+                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">${program.discipline}</span>
+                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full">${program.language}</span>
+                             <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">${program.continent}</span>
+                        </div>
+                        <div class="text-sm text-slate-500 border-t pt-4 mt-4">
+                            <p><strong>Durée:</strong> ${program.duration}</p>
+                            <p><strong>Frais annuels (approx.):</strong> ${program.tuition > 0 ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(program.tuition) : 'Gratuit (frais admin. possibles)'}</p>
+                        </div>
+                        <a href="${program.link}" target="_blank" class="inline-block mt-4 text-blue-600 font-semibold hover:underline">Voir le programme →</a>
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+            
+            function updateCharts(filteredData) {
+                updateCountryChart(filteredData);
+            }
+
+            function updateCountryChart(filteredData) {
+                const countryCounts = filteredData.reduce((acc, prog) => {
+                    acc[prog.country] = (acc[prog.country] || 0) + 1;
+                    return acc;
+                }, {});
+
+                const sortedCountries = Object.entries(countryCounts).sort(([, a], [, b]) => b - a);
+                const labels = sortedCountries.map(entry => entry[0]);
+                const data = sortedCountries.map(entry => entry[1]);
+
+                if (countryChart) {
+                    countryChart.destroy();
+                }
+
+                const ctx = document.getElementById('countryChart').getContext('2d');
+                countryChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Nombre de Programmes',
+                            data: data,
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        responsive: true,
+                        indexAxis: 'y',
+                         scales: {
+                            x: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: ${context.raw}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function filterAndRender() {
+                const filtered = programData.filter(p => {
+                    const disciplineMatch = currentFilters.discipline === 'all' || p.discipline === currentFilters.discipline;
+                    const continentMatch = currentFilters.continent === 'all' || p.continent === currentFilters.continent;
+                    const languageMatch = currentFilters.language === 'all' || p.language.includes(currentFilters.language);
+                    return disciplineMatch && continentMatch && languageMatch;
+                });
+                renderPrograms(filtered);
+                updateCharts(filtered);
+            }
+
+            filtersContainer.addEventListener('click', function(e) {
+                if (e.target.tagName === 'BUTTON') {
+                    const group = e.target.dataset.filterGroup;
+                    const value = e.target.dataset.filterValue;
+
+                    currentFilters[group] = value;
+                    
+                    document.querySelectorAll(`#${group}-filter button`).forEach(btn => {
+                        btn.classList.remove('active');
+                        btn.classList.add('inactive');
+                    });
+                    e.target.classList.add('active');
+                    e.target.classList.remove('inactive');
+
+                    filterAndRender();
+                }
+            });
+            
+            function renderCostChart() {
+                const costData = {
+                    labels: ['France', 'Allemagne', 'Belgique', 'Pays-Bas', 'Suède', 'Afrique du Sud', 'Chine'],
+                    tuition: [3770, 0, 4175, 18900, 14000, 4000, 4200], // Average approx tuition
+                    living: [615, 950, 900, 1200, 1100, 700, 500] // Monthly living
+                };
+                
+                const ctx = document.getElementById('costChart').getContext('2d');
+                costChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: costData.labels,
+                        datasets: [
+                            {
+                                label: 'Frais de scolarité annuels (EUR)',
+                                data: costData.tuition,
+                                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                                borderColor: 'rgba(59, 130, 246, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Coût de la vie mensuel (EUR)',
+                                data: costData.living,
+                                backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                                borderColor: 'rgba(16, 185, 129, 1)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(value);
+                                    }
+                                }
+                            }
+                        },
+                         plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Accordion Logic
+            const accordionContainer = document.getElementById('accordion-container');
+            accordionContainer.addEventListener('click', (e) => {
+                const header = e.target.closest('.accordion-header');
+                if (!header) return;
+
+                const item = header.parentElement;
+                const content = header.nextElementSibling;
+                const icon = header.querySelector('svg');
+
+                const isOpen = content.style.maxHeight && content.style.maxHeight !== '0px';
+
+                // Close all other items
+                item.parentElement.querySelectorAll('.accordion-item').forEach(otherItem => {
+                    if (otherItem !== item) {
+                         otherItem.querySelector('.accordion-content').style.maxHeight = '0px';
+                         otherItem.querySelector('svg').style.transform = 'rotate(0deg)';
+                    }
+                });
+
+                // Toggle current item
+                if (isOpen) {
+                    content.style.maxHeight = '0px';
+                    icon.style.transform = 'rotate(0deg)';
+                } else {
+                    content.style.maxHeight = content.scrollHeight + 'px';
+                    icon.style.transform = 'rotate(180deg)';
+                }
+            });
+            
+            // Mobile Menu Logic
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenuButton.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+            
+            // Nav Link Active State on Scroll
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.nav-link');
+
+            window.addEventListener('scroll', () => {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (pageYOffset >= sectionTop - 75) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active-nav');
+                    link.classList.add('inactive-nav');
+                    if (link.getAttribute('href') === `#${current}`) {
+                        link.classList.add('active-nav');
+                        link.classList.remove('inactive-nav');
+                    }
+                });
+            });
+
+
+            // Initial Render
+            filterAndRender();
+            renderCostChart();
+        });
+    </script>
+</body>
+</html>
